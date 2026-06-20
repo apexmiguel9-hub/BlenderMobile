@@ -252,8 +252,7 @@ jobs:
 
           if [ ! -f "$MAKESRNA_LIB" ] || [ ! -f "$BF_DNA_LIB" ] || [ ! -f "$BF_DNA_BLENLIB" ]; then
             echo "ERROR: Static libraries not found"
-            ls -la "$GITROOT/build_host/source/blender/makesdna/intern/"
-            ls -la "$GITROOT/build_host/source/blender/makesrna/intern/"
+            ls -la "$GITROOT/build_host/lib/"
             exit 1
           fi
 
@@ -275,6 +274,12 @@ jobs:
 
           # Count generated files
           echo "Total rna_*_gen.c files: $(ls "$RNA_GEN_DIR"/rna_*_gen.c 2>/dev/null | wc -l)"
+
+          # Copy generated RNA files to host tools for cross-compile
+          HOST_TOOLS="$GITROOT/build/host_tools"
+          mkdir -p "$HOST_TOOLS"
+          cp -v "$RNA_GEN_DIR"/*.c "$RNA_GEN_DIR"/*.h "$HOST_TOOLS/" 2>/dev/null || true
+          echo "RNA files staged to host tools"
 
       - name: Phase 7 - Stage makesrna host tool
         run: |
@@ -336,8 +341,8 @@ jobs:
 
       - name: Cross-compile Blender
         run: |
-          cmake --build ${{ github.workspace }}/build -j$(nproc) 2>&1 | tee build.log
-        timeout-minutes: 120
+          cmake --build ${{ github.workspace }}/build --target blender -j$(nproc) 2>&1 | tee build.log
+        timeout-minutes: 180
 
       - name: List build artifacts
         run: |
