@@ -246,9 +246,9 @@ jobs:
           mkdir -p "$RNA_GEN_DIR" "$RNA_PARENT_DIR"
 
           # Link makesrna executable from native static libs
-          MAKESRNA_LIB="$GITROOT/build_host/source/blender/makesrna/intern/libmakesrna.a"
-          BF_DNA_LIB="$GITROOT/build_host/source/blender/makesdna/intern/libbf_dna.a"
-          BF_DNA_BLENLIB="$GITROOT/build_host/source/blender/makesdna/intern/libbf_dna_blenlib.a"
+          MAKESRNA_LIB="$GITROOT/build_host/lib/libmakesrna.a"
+          BF_DNA_LIB="$GITROOT/build_host/lib/libbf_dna.a"
+          BF_DNA_BLENLIB="$GITROOT/build_host/lib/libbf_dna_blenlib.a"
 
           if [ ! -f "$MAKESRNA_LIB" ] || [ ! -f "$BF_DNA_LIB" ]; then
             echo "ERROR: Static libraries not found"
