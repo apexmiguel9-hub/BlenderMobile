@@ -65,7 +65,7 @@ void BLI_system_backtrace(FILE *fp)
 {
   /* ----------------------- */
   /* If system as execinfo.h */
-#  if defined(HAVE_EXECINFO_H)
+#  if defined(HAVE_EXECINFO_H) && !defined(__ANDROID__)
 
 #    define SIZE 100
   void *buffer[SIZE];
