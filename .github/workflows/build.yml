@@ -5,7 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:
 
 env:
   NDK_VERSION: "r26d"
@@ -65,19 +65,18 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ninja-build ccache
 
-      - name: Build host tools (datatoc)
+      - name: Build host tool (datatoc)
         run: |
           mkdir -p ${{ github.workspace }}/build/host_tools
-          # Simple native compile - no external deps needed for datatoc
           gcc -O2 -o ${{ github.workspace }}/build/host_tools/datatoc \
             ${{ github.workspace }}/source/blender/datatoc/datatoc.c -lm
           echo "datatoc built successfully"
 
-      - name: Configure CMake
+      - name: Configure CMake (cross-compile)
         run: |
           LIB_DIR="${{ github.workspace }}/../lib-android_arm64"
           NDK_DIR="${{ steps.setup-ndk.outputs.ndk-path }}"
-          
+
           cmake -B ${{ github.workspace }}/build \
             -G "Ninja" \
             -DCMAKE_TOOLCHAIN_FILE="${NDK_DIR}/build/cmake/android.toolchain.cmake" \
@@ -118,6 +117,42 @@ jobs:
             -DWITH_COMPILER_CCACHE=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build and run host tool (makesdna) to generate DNA files
+        run: |
+          GITROOT="${{ github.workspace }}"
+          BUILDDIR="$GITROOT/build"
+          DNA_INC_DIR="$GITROOT/source/blender/makesdna"
+          DNA_GEN_DIR="$BUILDDIR/source/blender/makesdna/intern"
+
+          echo "Compiling makesdna for host..."
+          gcc -O2 -o /tmp/makesdna \
+            -I"$DNA_INC_DIR" \
+            -I"$GITROOT/source/blender/blenlib" \
+            -I"$GITROOT/intern/atomic" \
+            -I"$GITROOT/intern/guardedalloc" \
+            -I"$DNA_GEN_DIR" \
+            "$GITROOT/source/blender/makesdna/intern/makesdna.c" \
+            "$GITROOT/source/blender/makesdna/intern/dna_utils.c" \
+            "$GITROOT/source/blender/blenlib/intern/BLI_assert.c" \
+            "$GITROOT/source/blender/blenlib/intern/BLI_ghash.c" \
+            "$GITROOT/source/blender/blenlib/intern/BLI_ghash_utils.c" \
+            "$GITROOT/source/blender/blenlib/intern/BLI_memarena.c" \
+            "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c" \
+            "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c" \
+            "$GITROOT/intern/guardedalloc/intern/mallocn.c" \
+            -lm
+
+          echo "Running makesdna to generate DNA files..."
+          mkdir -p "$DNA_GEN_DIR"
+          /tmp/makesdna \
+            "$DNA_GEN_DIR/dna.c" \
+            "$DNA_GEN_DIR/dna_type_offsets.h" \
+            "$DNA_GEN_DIR/dna_verify.c" \
+            "$DNA_INC_DIR/"
+
+          echo "Generated files:"
+          ls -la "$DNA_GEN_DIR/dna.c" "$DNA_GEN_DIR/dna_type_offsets.h" "$DNA_GEN_DIR/dna_verify.c"
 
       - name: Build Blender
         run: |
