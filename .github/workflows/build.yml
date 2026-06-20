@@ -162,9 +162,7 @@ jobs:
           GITROOT="${{ github.workspace }}"
           LIB_DIR="$GITROOT/../lib-android_arm64"
 
-          # WITH_INTERNATIONAL must match cross-compile config so makesrna generates
-          # rna_userdef_gen.c that references the correct function name. Other flags don't
-          # affect RNA code generation and can stay OFF.
+          # Feature flags that affect makesrna code generation must match cross-compile config.
           cmake -B "$GITROOT/build_host" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLIB_DIR="${LIB_DIR}" \
@@ -194,7 +192,7 @@ jobs:
             -DWITH_BUILDINFO=OFF \
             -DWITH_BULLET=OFF \
             -DWITH_AUDASPACE=OFF \
-            -DWITH_FLUID=OFF \
+            -DWITH_MOD_FLUID=ON \
             -DWITH_FREESTYLE=OFF \
             -DWITH_IMAGE_OPENEXR=OFF \
             -DWITH_IMAGE_CINEON=OFF \
