@@ -250,8 +250,8 @@ SET(PYTHON_LIBRARY
         ${LIB_DIR}/sqlite/lib/libsqlite.so
         ${LIB_DIR}/zip/lib/libzip.so)
 SET(PYTHON_LIBPATH            ${LIB_DIR}/cpython/include/)
-SET(PYTHON_INCLUDE_DIR        ${LIB_DIR}/cpython/include/include/)
-SET(PYTHON_INCLUDE_DIRS       ${LIB_DIR}/cpython/include/include/)
+SET(PYTHON_INCLUDE_DIR        ${LIB_DIR}/cpython/include/Include/)
+SET(PYTHON_INCLUDE_DIRS       ${LIB_DIR}/cpython/include/Include/)
 SET(PYTHON_INCLUDE_CONFIG_DIR ${LIB_DIR}/cpython/include/android/linux_arm64/pyconfig/)
 SET(PYTHONLIBS_FOUND TRUE)
 SET(PYTHON_LIBRARIES
