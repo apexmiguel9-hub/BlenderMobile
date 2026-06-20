@@ -132,15 +132,15 @@
 #UNSET(_opencollada_LIBRARIES)
 #UNSET(_opencollada_INCLUDES)
 SET(OPENCOLLADA_INCLUDE_DIRS
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADABaseUtils/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADAFramework/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADAMax/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADAMaya/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADASaxFrameworkLoader/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADAStreamWriter/include/
-        ${LIB_DIR}/OpenCOLLADA/include/COLLADAValidator/include/
-        ${LIB_DIR}/OpenCOLLADA/include/GeneratedSaxParser/include/
-        ${LIB_DIR}/OpenCOLLADA/include/G3DWarehouseBrowser/include/)
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADABaseUtils/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADAFramework/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADAMax/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADAMaya/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADASaxFrameworkLoader/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADAStreamWriter/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/COLLADAValidator/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/GeneratedSaxParser/include/
+        ${LIB_DIR}/OpenCOLLADA/include/OpenCOLLADA-main/G3DWarehouseBrowser/include/)
 SET(OPENCOLLADA_FOUND ON)
 SET(OPENCOLLADA_LIBRARIES
         ${LIB_DIR}/OpenCOLLADA/lib/libbuffer.so
