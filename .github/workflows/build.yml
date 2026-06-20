@@ -126,7 +126,7 @@ jobs:
           DNA_GEN_DIR="$BUILDDIR/source/blender/makesdna/intern"
 
           echo "Compiling makesdna for host..."
-          gcc -O2 -o /tmp/makesdna \
+          g++ -O2 -o /tmp/makesdna \
             -I"$DNA_INC_DIR" \
             -I"$GITROOT/source/blender/blenlib" \
             -I"$GITROOT/intern/atomic" \
@@ -141,7 +141,11 @@ jobs:
             "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c" \
             "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c" \
             "$GITROOT/intern/guardedalloc/intern/mallocn.c" \
-            -lm
+            "$GITROOT/intern/guardedalloc/intern/mallocn_guarded_impl.c" \
+            "$GITROOT/intern/guardedalloc/intern/mallocn_lockfree_impl.c" \
+            "$GITROOT/intern/guardedalloc/intern/leak_detector.cc" \
+            "$GITROOT/intern/guardedalloc/intern/memory_usage.cc" \
+            -lm -lpthread
 
           echo "Running makesdna to generate DNA files..."
           mkdir -p "$DNA_GEN_DIR"
