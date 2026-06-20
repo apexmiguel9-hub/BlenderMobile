@@ -293,6 +293,13 @@ jobs:
           echo "Host tools:"
           ls -la "$HOST_TOOLS/"
 
+      - name: Fix pre-built libs - configure missing pnglibconf.h
+        run: |
+          PNG_DIR="${{ github.workspace }}/../lib-android_arm64/Png/include/libpng-1.6.40"
+          if [ -f "$PNG_DIR/scripts/pnglibconf.h.prebuilt" ] && [ ! -f "$PNG_DIR/pnglibconf.h" ]; then
+            cp -v "$PNG_DIR/scripts/pnglibconf.h.prebuilt" "$PNG_DIR/pnglibconf.h"
+          fi
+
       - name: Configure CMake for cross-compile
         run: |
           GITROOT="${{ github.workspace }}"
