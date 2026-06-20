@@ -65,26 +65,240 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ninja-build ccache
 
-      - name: Build host tool (datatoc)
+      - name: Phase 1 - Build host tools natively
         run: |
-          mkdir -p ${{ github.workspace }}/build/host_tools
-          gcc -O2 -o ${{ github.workspace }}/build/host_tools/datatoc \
-            ${{ github.workspace }}/source/blender/datatoc/datatoc.c -lm
-          echo "datatoc built successfully"
+          GITROOT="${{ github.workspace }}"
+          LIB_DIR="$GITROOT/../lib-android_arm64"
+          HOST_TOOLS="$GITROOT/build/host_tools"
+          mkdir -p "$HOST_TOOLS"
 
-      - name: Configure CMake (cross-compile)
+          # --- datatoc ---
+          gcc -O2 -o "$HOST_TOOLS/datatoc" \
+            "$GITROOT/source/blender/datatoc/datatoc.c" -lm
+          echo "datatoc built"
+
+          # --- datatoc_icon (optional) ---
+          PNG_INC="$LIB_DIR/Png/include/libpng-1.6.40"
+          PNG_LIB="$LIB_DIR/Png/lib/libpng16.so"
+          ZLIB_LIB="$LIB_DIR/OpenCOLLADA/lib/libzlib.so"
+          if [ -f "$PNG_LIB" ]; then
+            gcc -O2 -o "$HOST_TOOLS/datatoc_icon" \
+              -I"$PNG_INC" \
+              "$GITROOT/source/blender/datatoc/datatoc_icon.c" \
+              "$PNG_LIB" "$ZLIB_LIB" -lm 2>/dev/null && \
+              echo "datatoc_icon built" || \
+              echo "Warning: datatoc_icon build failed"
+          else
+            echo "Warning: libpng not found, datatoc_icon skipped"
+          fi
+
+      - name: Phase 2 - Build and run makesdna host tool
         run: |
-          LIB_DIR="${{ github.workspace }}/../lib-android_arm64"
+          GITROOT="${{ github.workspace }}"
+          DNA_INC_DIR="$GITROOT/source/blender/makesdna"
+          DNA_GEN_DIR="$GITROOT/build/host_dna_gen"
+          mkdir -p "$DNA_GEN_DIR"
+
+          # Generate dna_includes_all.h and dna_includes_as_strings.h
+          # (replicates what CMake's file(GENERATE ...) does)
+          EXTRACT_DNA='s/.*makesdna\/(DNA_[a-zA-Z0-9_]*\.h).*/\1/p'
+          {
+            echo "/* Do not edit manually, changes will be overwritten. */"
+            sed -n "$EXTRACT_DNA" "$GITROOT/source/blender/CMakeLists.txt" | \
+              while IFS= read -r hdr; do echo "#include \"$hdr\""; done
+          } > "$DNA_GEN_DIR/dna_includes_all.h"
+          {
+            echo "/* Do not edit manually, changes will be overwritten. */"
+            sed -n "$EXTRACT_DNA" "$GITROOT/source/blender/CMakeLists.txt" | \
+              while IFS= read -r hdr; do echo "\"$hdr\","; done
+          } > "$DNA_GEN_DIR/dna_includes_as_strings.h"
+          echo "dna_includes headers generated"
+
+          # Compile makesdna manually for host
+          CFLAGS="-O2 -I$DNA_INC_DIR -I$GITROOT/source/blender/blenlib \
+            -I$GITROOT/intern/atomic -I$GITROOT/intern/guardedalloc -I$DNA_GEN_DIR"
+
+          gcc $CFLAGS -c -o /tmp/ms_main.o  "$DNA_INC_DIR/intern/makesdna.c"
+          gcc $CFLAGS -c -o /tmp/ms_utils.o "$DNA_INC_DIR/intern/dna_utils.c"
+          gcc $CFLAGS -c -o /tmp/ms_asrt.o "$GITROOT/source/blender/blenlib/intern/BLI_assert.c"
+          gcc $CFLAGS -c -o /tmp/ms_ghash.o "$GITROOT/source/blender/blenlib/intern/BLI_ghash.c"
+          gcc $CFLAGS -c -o /tmp/ms_gh2.o  "$GITROOT/source/blender/blenlib/intern/BLI_ghash_utils.c"
+          gcc $CFLAGS -c -o /tmp/ms_mema.o "$GITROOT/source/blender/blenlib/intern/BLI_memarena.c"
+          gcc $CFLAGS -c -o /tmp/ms_memp.o "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c"
+          gcc $CFLAGS -c -o /tmp/ms_hash.o "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c"
+          gcc $CFLAGS -c -o /tmp/ms_ml1.o "$GITROOT/intern/guardedalloc/intern/mallocn.c"
+          gcc $CFLAGS -c -o /tmp/ms_ml2.o "$GITROOT/intern/guardedalloc/intern/mallocn_guarded_impl.c"
+          gcc $CFLAGS -c -o /tmp/ms_ml3.o "$GITROOT/intern/guardedalloc/intern/mallocn_lockfree_impl.c"
+          g++ $CFLAGS -c -o /tmp/ms_leak.o "$GITROOT/intern/guardedalloc/intern/leak_detector.cc"
+          g++ $CFLAGS -c -o /tmp/ms_mem.o  "$GITROOT/intern/guardedalloc/intern/memory_usage.cc"
+
+          g++ -o /tmp/makesdna \
+            /tmp/ms_main.o /tmp/ms_utils.o /tmp/ms_asrt.o /tmp/ms_ghash.o \
+            /tmp/ms_gh2.o /tmp/ms_mema.o /tmp/ms_memp.o /tmp/ms_hash.o \
+            /tmp/ms_ml1.o /tmp/ms_ml2.o /tmp/ms_ml3.o \
+            /tmp/ms_leak.o /tmp/ms_mem.o \
+            -lm -lpthread
+          echo "makesdna compiled"
+
+          # Run makesdna to generate DNA files
+          /tmp/makesdna \
+            "$DNA_GEN_DIR/dna.c" \
+            "$DNA_GEN_DIR/dna_type_offsets.h" \
+            "$DNA_GEN_DIR/dna_verify.c" \
+            "$DNA_INC_DIR/"
+          echo "DNA files generated:"
+          ls -la "$DNA_GEN_DIR/dna.c" "$DNA_GEN_DIR/dna_type_offsets.h"
+
+          # Copy tools for later use
+          HOST_TOOLS="$GITROOT/build/host_tools"
+          cp /tmp/makesdna "$HOST_TOOLS/makesdna"
+          cp "$DNA_GEN_DIR/dna_includes_all.h" "$DNA_GEN_DIR/dna_includes_as_strings.h" \
+            "$DNA_GEN_DIR/dna.c" "$DNA_GEN_DIR/dna_type_offsets.h" "$DNA_GEN_DIR/dna_verify.c" \
+            "$HOST_TOOLS/"
+
+      - name: Phase 3 - Configure CMake natively for makesrna
+        run: |
+          GITROOT="${{ github.workspace }}"
+          LIB_DIR="$GITROOT/../lib-android_arm64"
+
+          cmake -B "$GITROOT/build_host" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIB_DIR="${LIB_DIR}" \
+            -DWITH_BLENDER=ON \
+            -DWITH_PYTHON=OFF \
+            -DWITH_INTERNATIONAL=OFF \
+            -DWITH_CODEC_FFMPEG=OFF \
+            -DWITH_OPENAL=OFF \
+            -DWITH_SDL=OFF \
+            -DWITH_GHOST_X11=OFF \
+            -DWITH_GHOST_WAYLAND=OFF \
+            -DWITH_JACK=OFF \
+            -DWITH_PULSEAUDIO=OFF \
+            -DWITH_OPENCOLLADA=OFF \
+            -DWITH_OPENSUBDIV=OFF \
+            -DWITH_OPENVDB=OFF \
+            -DWITH_NANOVDB=OFF \
+            -DWITH_ALEMBIC=OFF \
+            -DWITH_USD=OFF \
+            -DWITH_CYCLES=OFF \
+            -DWITH_TBB=OFF \
+            -DWITH_FFTW3=OFF \
+            -DWITH_GMP=OFF \
+            -DWITH_POTRACE=OFF \
+            -DWITH_GTESTS=OFF \
+            -DWITH_VULKAN_BACKEND=OFF \
+            -DWITH_BUILDINFO=OFF \
+            -DWITH_BULLET=OFF \
+            -DWITH_AUDASPACE=OFF \
+            -DWITH_FLUID=OFF \
+            -DWITH_FREESTYLE=OFF \
+            -DWITH_IMAGE_OPENEXR=OFF \
+            -DWITH_IMAGE_CINEON=OFF \
+            -DWITH_IMAGE_TIFF=OFF \
+            -DWITH_IMAGE_JPEG=OFF \
+            -DWITH_IMAGE_PNG=OFF \
+            -DWITH_MOD_OCEANSIM=OFF \
+            -DWITH_MOD_REMESH=OFF \
+            -DWITH_XR_OPENXR=OFF \
+            -DWITH_MEM_VALGRIND=OFF \
+            -DWITH_HARU=OFF \
+            -DWITH_OPENIMAGEDENOISE=OFF \
+            -DWITH_LZO=OFF \
+            -DWITH_LLVM=OFF \
+            -DWITH_INSTALL_PORTABLE=ON \
+            2>&1 | tail -30
+          echo "Native CMake configured"
+
+      - name: Phase 4 - Copy generated DNA files into native build tree
+        run: |
+          GITROOT="${{ github.workspace }}"
+          HOST_TOOLS="$GITROOT/build/host_tools"
+          DNA_GEN_DIR_HOST="$GITROOT/build_host/source/blender/makesdna/intern"
+          mkdir -p "$DNA_GEN_DIR_HOST"
+          cp -v "$HOST_TOOLS/dna_includes_all.h" \
+             "$HOST_TOOLS/dna_includes_as_strings.h" \
+             "$HOST_TOOLS/dna.c" \
+             "$HOST_TOOLS/dna_type_offsets.h" \
+             "$HOST_TOOLS/dna_verify.c" \
+             "$DNA_GEN_DIR_HOST/"
+          echo "DNA files copied to native build tree"
+
+      - name: Phase 5 - Build bf_dna and makesrna natively
+        run: |
+          GITROOT="${{ github.workspace }}"
+          # Build bf_dna (needs generated DNA files)
+          ninja -C "$GITROOT/build_host" bf_dna 2>&1 | tail -10
+          echo "bf_dna built natively"
+
+          # Build bf_dna_blenlib
+          ninja -C "$GITROOT/build_host" bf_dna_blenlib 2>&1 | tail -10
+          echo "bf_dna_blenlib built natively"
+
+          # Build makesrna (static lib)
+          ninja -C "$GITROOT/build_host" makesrna 2>&1 | tail -10
+          echo "makesrna built natively"
+
+      - name: Phase 6 - Link and run makesrna host tool
+        run: |
+          GITROOT="${{ github.workspace }}"
+          RNA_GEN_DIR="$GITROOT/build_host/source/blender/makesrna/intern"
+          RNA_PARENT_DIR="$GITROOT/build_host/source/blender/makesrna"
+          mkdir -p "$RNA_GEN_DIR" "$RNA_PARENT_DIR"
+
+          # Link makesrna executable from native static libs
+          MAKESRNA_LIB="$GITROOT/build_host/source/blender/makesrna/intern/libmakesrna.a"
+          BF_DNA_LIB="$GITROOT/build_host/source/blender/makesdna/intern/libbf_dna.a"
+          BF_DNA_BLENLIB="$GITROOT/build_host/source/blender/makesdna/intern/libbf_dna_blenlib.a"
+
+          if [ ! -f "$MAKESRNA_LIB" ] || [ ! -f "$BF_DNA_LIB" ]; then
+            echo "ERROR: Static libraries not found"
+            ls -la "$GITROOT/build_host/source/blender/makesdna/intern/"
+            ls -la "$GITROOT/build_host/source/blender/makesrna/intern/"
+            exit 1
+          fi
+
+          g++ -o /tmp/makesrna \
+            "$MAKESRNA_LIB" \
+            "$BF_DNA_LIB" \
+            "$BF_DNA_BLENLIB" \
+            -lm -lpthread
+          echo "makesrna executable linked"
+
+          # Run makesrna to generate RNA files
+          # argv[1] = intern dir → rna_*_gen.c, rna_prototypes_gen.h
+          # argv[2] = parent dir → RNA_prototypes.h
+          /tmp/makesrna "$RNA_GEN_DIR/" "$RNA_PARENT_DIR/"
+          echo "makesrna ran. Generated files:"
+          ls -la "$RNA_GEN_DIR/" | head -20
+
+          # Count generated files
+          echo "Total rna_*_gen.c files: $(ls "$RNA_GEN_DIR"/rna_*_gen.c 2>/dev/null | wc -l)"
+
+      - name: Phase 7 - Stage makesrna host tool
+        run: |
+          GITROOT="${{ github.workspace }}"
+          HOST_TOOLS="$GITROOT/build/host_tools"
+          cp /tmp/makesrna "$HOST_TOOLS/makesrna" 2>/dev/null || true
+          echo "Host tools:"
+          ls -la "$HOST_TOOLS/"
+
+      - name: Configure CMake for cross-compile
+        run: |
+          GITROOT="${{ github.workspace }}"
+          LIB_DIR="$GITROOT/../lib-android_arm64"
           NDK_DIR="${{ steps.setup-ndk.outputs.ndk-path }}"
+          HOST_TOOLS="$GITROOT/build/host_tools"
 
-          cmake -B ${{ github.workspace }}/build \
+          cmake -B "$GITROOT/build" \
             -G "Ninja" \
             -DCMAKE_TOOLCHAIN_FILE="${NDK_DIR}/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
             -DCMAKE_BUILD_TYPE=Release \
             -DLIB_DIR="${LIB_DIR}" \
-            -DDATATOC_EXECUTABLE="${{ github.workspace }}/build/host_tools/datatoc" \
+            -DDATATOC_EXECUTABLE="$HOST_TOOLS/datatoc" \
+            -DMAKESDNA_EXECUTABLE="$HOST_TOOLS/makesdna" \
+            -DMAKESRNA_EXECUTABLE="$HOST_TOOLS/makesrna" \
             -DWITH_BLENDER=ON \
             -DWITH_PYTHON=ON \
             -DWITH_INTERNATIONAL=ON \
@@ -118,58 +332,19 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build and run host tool (makesdna) to generate DNA files
-        run: |
-          GITROOT="${{ github.workspace }}"
-          BUILDDIR="$GITROOT/build"
-          DNA_INC_DIR="$GITROOT/source/blender/makesdna"
-          DNA_GEN_DIR="$BUILDDIR/source/blender/makesdna/intern"
-
-          echo "Compiling makesdna for host..."
-          CFLAGS="-O2 -I$DNA_INC_DIR -I$GITROOT/source/blender/blenlib -I$GITROOT/intern/atomic -I$GITROOT/intern/guardedalloc -I$DNA_GEN_DIR"
-          # Compile C files with gcc
-          gcc $CFLAGS -c -o /tmp/makesdna_main.o     "$GITROOT/source/blender/makesdna/intern/makesdna.c"
-          gcc $CFLAGS -c -o /tmp/dna_utils.o         "$GITROOT/source/blender/makesdna/intern/dna_utils.c"
-          gcc $CFLAGS -c -o /tmp/BLI_assert.o        "$GITROOT/source/blender/blenlib/intern/BLI_assert.c"
-          gcc $CFLAGS -c -o /tmp/BLI_ghash.o         "$GITROOT/source/blender/blenlib/intern/BLI_ghash.c"
-          gcc $CFLAGS -c -o /tmp/BLI_ghash_utils.o   "$GITROOT/source/blender/blenlib/intern/BLI_ghash_utils.c"
-          gcc $CFLAGS -c -o /tmp/BLI_memarena.o      "$GITROOT/source/blender/blenlib/intern/BLI_memarena.c"
-          gcc $CFLAGS -c -o /tmp/BLI_mempool.o       "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c"
-          gcc $CFLAGS -c -o /tmp/hash_mm2a.o         "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c"
-          gcc $CFLAGS -c -o /tmp/mallocn.o            "$GITROOT/intern/guardedalloc/intern/mallocn.c"
-          gcc $CFLAGS -c -o /tmp/mallocn_guarded.o    "$GITROOT/intern/guardedalloc/intern/mallocn_guarded_impl.c"
-          gcc $CFLAGS -c -o /tmp/mallocn_lockfree.o   "$GITROOT/intern/guardedalloc/intern/mallocn_lockfree_impl.c"
-          # Compile C++ files with g++
-          g++ $CFLAGS -c -o /tmp/leak_detector.o     "$GITROOT/intern/guardedalloc/intern/leak_detector.cc"
-          g++ $CFLAGS -c -o /tmp/memory_usage.o      "$GITROOT/intern/guardedalloc/intern/memory_usage.cc"
-          # Link everything
-          g++ -o /tmp/makesdna \
-            /tmp/makesdna_main.o /tmp/dna_utils.o \
-            /tmp/BLI_assert.o /tmp/BLI_ghash.o /tmp/BLI_ghash_utils.o \
-            /tmp/BLI_memarena.o /tmp/BLI_mempool.o /tmp/hash_mm2a.o \
-            /tmp/mallocn.o /tmp/mallocn_guarded.o /tmp/mallocn_lockfree.o \
-            /tmp/leak_detector.o /tmp/memory_usage.o \
-            -lm -lpthread
-
-          echo "Running makesdna to generate DNA files..."
-          mkdir -p "$DNA_GEN_DIR"
-          /tmp/makesdna \
-            "$DNA_GEN_DIR/dna.c" \
-            "$DNA_GEN_DIR/dna_type_offsets.h" \
-            "$DNA_GEN_DIR/dna_verify.c" \
-            "$DNA_INC_DIR/"
-
-          echo "Generated files:"
-          ls -la "$DNA_GEN_DIR/dna.c" "$DNA_GEN_DIR/dna_type_offsets.h" "$DNA_GEN_DIR/dna_verify.c"
-
-      - name: Build Blender
+      - name: Cross-compile Blender
         run: |
           cmake --build ${{ github.workspace }}/build -j$(nproc) 2>&1 | tee build.log
+        timeout-minutes: 120
 
       - name: List build artifacts
         run: |
-          echo "=== Build output ==="
-          find ${{ github.workspace }}/build -name "*.so" -o -name "blender" | head -20
+          echo "=== .so files ==="
+          find ${{ github.workspace }}/build -name "*.so" -exec ls -lh {} \; 2>/dev/null || echo "No .so files"
+          echo "=== bin/ ==="
+          ls -lh ${{ github.workspace }}/build/bin/ 2>/dev/null || echo "No bin/"
+          echo "=== lib/ ==="
+          ls -lh ${{ github.workspace }}/build/lib/ 2>/dev/null || echo "No lib/"
           echo "=== Build size ==="
           du -sh ${{ github.workspace }}/build/lib/ 2>/dev/null || true
           du -sh ${{ github.workspace }}/build/bin/ 2>/dev/null || true
