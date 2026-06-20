@@ -126,25 +126,29 @@ jobs:
           DNA_GEN_DIR="$BUILDDIR/source/blender/makesdna/intern"
 
           echo "Compiling makesdna for host..."
-          g++ -O2 -o /tmp/makesdna \
-            -I"$DNA_INC_DIR" \
-            -I"$GITROOT/source/blender/blenlib" \
-            -I"$GITROOT/intern/atomic" \
-            -I"$GITROOT/intern/guardedalloc" \
-            -I"$DNA_GEN_DIR" \
-            "$GITROOT/source/blender/makesdna/intern/makesdna.c" \
-            "$GITROOT/source/blender/makesdna/intern/dna_utils.c" \
-            "$GITROOT/source/blender/blenlib/intern/BLI_assert.c" \
-            "$GITROOT/source/blender/blenlib/intern/BLI_ghash.c" \
-            "$GITROOT/source/blender/blenlib/intern/BLI_ghash_utils.c" \
-            "$GITROOT/source/blender/blenlib/intern/BLI_memarena.c" \
-            "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c" \
-            "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c" \
-            "$GITROOT/intern/guardedalloc/intern/mallocn.c" \
-            "$GITROOT/intern/guardedalloc/intern/mallocn_guarded_impl.c" \
-            "$GITROOT/intern/guardedalloc/intern/mallocn_lockfree_impl.c" \
-            "$GITROOT/intern/guardedalloc/intern/leak_detector.cc" \
-            "$GITROOT/intern/guardedalloc/intern/memory_usage.cc" \
+          CFLAGS="-O2 -I$DNA_INC_DIR -I$GITROOT/source/blender/blenlib -I$GITROOT/intern/atomic -I$GITROOT/intern/guardedalloc -I$DNA_GEN_DIR"
+          # Compile C files with gcc
+          gcc $CFLAGS -c -o /tmp/makesdna_main.o     "$GITROOT/source/blender/makesdna/intern/makesdna.c"
+          gcc $CFLAGS -c -o /tmp/dna_utils.o         "$GITROOT/source/blender/makesdna/intern/dna_utils.c"
+          gcc $CFLAGS -c -o /tmp/BLI_assert.o        "$GITROOT/source/blender/blenlib/intern/BLI_assert.c"
+          gcc $CFLAGS -c -o /tmp/BLI_ghash.o         "$GITROOT/source/blender/blenlib/intern/BLI_ghash.c"
+          gcc $CFLAGS -c -o /tmp/BLI_ghash_utils.o   "$GITROOT/source/blender/blenlib/intern/BLI_ghash_utils.c"
+          gcc $CFLAGS -c -o /tmp/BLI_memarena.o      "$GITROOT/source/blender/blenlib/intern/BLI_memarena.c"
+          gcc $CFLAGS -c -o /tmp/BLI_mempool.o       "$GITROOT/source/blender/blenlib/intern/BLI_mempool.c"
+          gcc $CFLAGS -c -o /tmp/hash_mm2a.o         "$GITROOT/source/blender/blenlib/intern/hash_mm2a.c"
+          gcc $CFLAGS -c -o /tmp/mallocn.o            "$GITROOT/intern/guardedalloc/intern/mallocn.c"
+          gcc $CFLAGS -c -o /tmp/mallocn_guarded.o    "$GITROOT/intern/guardedalloc/intern/mallocn_guarded_impl.c"
+          gcc $CFLAGS -c -o /tmp/mallocn_lockfree.o   "$GITROOT/intern/guardedalloc/intern/mallocn_lockfree_impl.c"
+          # Compile C++ files with g++
+          g++ $CFLAGS -c -o /tmp/leak_detector.o     "$GITROOT/intern/guardedalloc/intern/leak_detector.cc"
+          g++ $CFLAGS -c -o /tmp/memory_usage.o      "$GITROOT/intern/guardedalloc/intern/memory_usage.cc"
+          # Link everything
+          g++ -o /tmp/makesdna \
+            /tmp/makesdna_main.o /tmp/dna_utils.o \
+            /tmp/BLI_assert.o /tmp/BLI_ghash.o /tmp/BLI_ghash_utils.o \
+            /tmp/BLI_memarena.o /tmp/BLI_mempool.o /tmp/hash_mm2a.o \
+            /tmp/mallocn.o /tmp/mallocn_guarded.o /tmp/mallocn_lockfree.o \
+            /tmp/leak_detector.o /tmp/memory_usage.o \
             -lm -lpthread
 
           echo "Running makesdna to generate DNA files..."
