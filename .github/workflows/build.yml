@@ -8,14 +8,14 @@ on:
   workflow_dispatch:  # manual trigger
 
 env:
-  NDK_VERSION: "26.1.10909125"
+  NDK_VERSION: "r26d"
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NDK_CACHE_KEY: ndk-Linux-26.1.10909125
+      NDK_CACHE_KEY: ndk-Linux-r26d
       LIBS_CACHE_KEY: libs-Linux-2024-01
     steps:
       - name: Checkout repository
