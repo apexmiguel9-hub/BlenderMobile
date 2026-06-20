@@ -315,11 +315,8 @@ if(WITH_PYTHON_MODULE)
   endif()
 
 elseif(ANDROID)
-  # Export all symbols for JNI wrapper
-  set(CMAKE_C_VISIBILITY_PRESET default)
-  set(CMAKE_CXX_VISIBILITY_PRESET default)
-  set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
   add_library(blender SHARED ${SRC})
+  target_compile_options(blender PRIVATE -fvisibility=default)
 else()
   add_executable(blender ${EXETYPE} ${SRC})
   if(WIN32)
