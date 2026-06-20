@@ -377,7 +377,9 @@ jobs:
           ls -lh ${{ github.workspace }}/build/bin/ 2>/dev/null || echo "No bin/"
           echo "=== lib/ ==="
           ls -lh ${{ github.workspace }}/build/lib/ 2>/dev/null || echo "No lib/"
-          echo "=== Build size ==="
+          echo "=== libblender.so ==="
+          find ${{ github.workspace }}/build -name "libblender*" -exec ls -lh {} \; 2>/dev/null || echo "Not found"
+          echo "=== Build sizes ==="
           du -sh ${{ github.workspace }}/build/lib/ 2>/dev/null || true
           du -sh ${{ github.workspace }}/build/bin/ 2>/dev/null || true
 
@@ -388,7 +390,7 @@ jobs:
           name: blender-android-arm64
           path: |
             ${{ github.workspace }}/build/lib/*.so
-            ${{ github.workspace }}/build/bin/
+            ${{ github.workspace }}/build/bin/libblender.so
           retention-days: 30
 
       - name: Save ccache

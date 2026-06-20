@@ -1157,7 +1157,7 @@ if(ANDROID)
   add_definitions(-include "${CMAKE_SOURCE_DIR}/intern/epoxy_android_stubs.h")
   # Pre-compiled .so libs (OIIO, COLLADA XML, GMP) reference newer Bionic symbols
   # not available in NDK r26d API 24 headers. Allow at link time; resolved at runtime.
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
 endif()
 
 if(WITH_CPU_SIMD)

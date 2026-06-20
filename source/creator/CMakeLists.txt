@@ -314,6 +314,8 @@ if(WITH_PYTHON_MODULE)
     )
   endif()
 
+elseif(ANDROID)
+  add_library(blender SHARED ${SRC})
 else()
   add_executable(blender ${EXETYPE} ${SRC})
   if(WIN32)
