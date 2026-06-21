@@ -316,11 +316,11 @@ if(WITH_PYTHON_MODULE)
 
 elseif(ANDROID)
   add_library(blender SHARED ${SRC})
+  # Export all symbols from libblender.so for JNI wrapper
   target_compile_options(blender PRIVATE -fvisibility=default)
+  target_link_options(blender PRIVATE -Wl,--version-script=${CMAKE_SOURCE_DIR}/cmake/version-script-android.ver)
   # Also apply to dependencies
   target_compile_options(bf_intern_guardedalloc PRIVATE -fvisibility=default)
-  # Export all symbols via version script
-  target_link_options(blender PRIVATE -Wl,--version-script=${CMAKE_SOURCE_DIR}/cmake/version-script-android.ver)
 else()
   add_executable(blender ${EXETYPE} ${SRC})
   if(WIN32)
