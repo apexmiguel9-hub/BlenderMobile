@@ -134,12 +134,29 @@ endif()
 
 # Setup the EXE sources and `buildinfo`.
 set(SRC
-  creator.c
   creator_args.c
   creator_signals.c
 
   creator_intern.h
 )
+
+if(ANDROID)
+  list(APPEND SRC
+    android/android_native_app_glue.cc
+    android/native-lib.cpp
+    android/java_godot_lib_jni.cpp
+    android/creator.cc
+    android/creator.h
+  )
+  list(APPEND INC
+    android
+    ../../intern
+  )
+else()
+  list(APPEND SRC
+    creator.c
+  )
+endif()
 
 # MSVC 2010 gives linking errors with the manifest.
 if(WIN32 AND NOT UNIX)
