@@ -149,6 +149,7 @@ if(ANDROID)
     android/creator.h
   )
   list(APPEND INC
+    .
     android
     ../../intern
   )
