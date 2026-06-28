@@ -7,8 +7,16 @@ extern void* mainBlenderInitial(int argc, const char **argv);
 extern void mainBlenderInitial_reinit(void*pContext);
 extern int mainBlenderLoop(void*pContext);
 extern void initialLib(void*pNativeWindo);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern void setAndroidApp(bool hasApp);
 extern bool hasAndroidApp();
+#ifdef __cplusplus
+}
+#endif
+
 extern void oblSetValue(int values[],int num);
 extern void oblSetValueOn(int values[],int num);
 extern void oblSetValueOff(int values[],int num);
