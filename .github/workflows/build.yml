@@ -326,7 +326,8 @@ jobs:
             -DWITH_OPENAL=ON \
             -DWITH_SDL=OFF \
             -DWITH_GHOST_X11=OFF \
-            -DWITH_GHOST_WAYLAND=OFF \
+            -DWITH_GHOST_WAYLAND=ON \
+            -DWITH_GHOST_WAYLAND_DYNLOAD=OFF \
             -DWITH_JACK=OFF \
             -DWITH_PULSEAUDIO=OFF \
             -DWITH_OPENCOLLADA=ON \
